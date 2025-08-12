@@ -1,0 +1,209 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  MODERATOR
+  MEDIA_BUYER
+  SUPPORT
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  BANNED
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum HttpMethod {
+  GET
+  POST
+  PUT
+  DELETE
+  PATCH
+  OPTIONS
+}
+
+enum FeedbackType {
+  HELPFUL
+  NOT_HELPFUL
+  RATING
+  SUGGESTION
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  name         String
+  password     String
+  role         UserRole    @default(USER)
+  status       UserStatus  @default(PENDING)
+  isBlocked    Boolean     @default(false)
+  apiKey       String?     @unique
+  telegram     String?
+  company      String?
+  website      String?
+  bio          String?
+  avatar           String?
+  lastLoginAt      DateTime?
+  registrationCode String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  // Relations
+  articles     Article[]
+  comments     Comment[]
+  analytics    Analytics[]
+
+  @@map("users")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  key         String    @unique
+  name        String
+  description String?
+  order       Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  articles    Article[]
+
+  @@map("categories")
+}
+
+model Article {
+  id              String        @id @default(cuid())
+  title           String
+  slug            String        @unique
+  content         String
+  excerpt         String?
+  status          ArticleStatus @default(DRAFT)
+  categoryKey     String
+  tags            String?       // JSON array
+  metaTitle       String?
+  metaDescription String?
+  authorId        String
+  viewCount       Int           @default(0)
+  likeCount       Int           @default(0)
+  publishedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  author          User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  category        Category      @relation(fields: [categoryKey], references: [key], onDelete: Restrict)
+  comments        Comment[]
+  feedbacks       Feedback[]
+
+  @@map("articles")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  status    String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  articleId String
+  authorId  String
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+
+  @@map("comments")
+}
+
+model ApiEndpoint {
+  id          String     @id @default(cuid())
+  name        String
+  method      HttpMethod
+  path        String
+  description String
+  parameters  String?    // JSON
+  responses   String?    // JSON
+  examples    String?    // JSON
+  version     String     @default("v2")
+  deprecated  Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([method, path, version])
+  @@map("api_endpoints")
+}
+
+model SiteSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  type      String   @default("string") // string, number, boolean, json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+model Feedback {
+  id        String       @id @default(cuid())
+  type      FeedbackType
+  message   String?
+  rating    Int?         // 1-5 stars
+  articleId String?
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime     @default(now())
+
+  // Relations
+  article   Article?     @relation(fields: [articleId], references: [id], onDelete: SetNull)
+
+  @@map("feedbacks")
+}
+
+model SearchQuery {
+  id        String   @id @default(cuid())
+  query     String
+  results   Int      @default(0)
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@map("search_queries")
+}
+
+model Analytics {
+  id        String   @id @default(cuid())
+  event     String
+  data      String?  // JSON
+  userId    String?
+  sessionId String?
+  userAgent String?
+  ipAddress String?
+  referer   String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("analytics")
+}
