@@ -20,6 +20,11 @@ export default async function DocPage({
       slug: slug,
       status: "PUBLISHED",
     },
+    include: {
+      category: {
+        select: { key: true, name: true },
+      },
+    },
   });
 
   if (!article) {
@@ -36,7 +41,7 @@ export default async function DocPage({
     <div>
       <div className="mb-8">
         <div className="text-xs uppercase tracking-wide text-blue-700 dark:text-blue-400 mb-2">
-          {getCategoryDisplayName(article.category)}
+          {article.category?.name || getCategoryDisplayName(article.categoryKey)}
         </div>
         <h1 className="text-3xl font-bold mb-4">{article.title}</h1>
         {article.excerpt && (
@@ -79,7 +84,8 @@ export default async function DocPage({
   );
 }
 
-function getCategoryDisplayName(category: string): string {
+function getCategoryDisplayName(category?: string | null): string {
+  if (!category) return "ДРУГОЕ";
   const categoryMap: Record<string, string> = {
     "getting-started": "НАЧАЛО РАБОТЫ",
     "api": "API REFERENCE V2",
