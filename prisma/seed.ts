@@ -1493,11 +1493,15 @@ function isValidEmail(email) {
   ];
 
   for (const sq of searchQueries) {
-    await prisma.searchQuery.upsert({
-      where: { query: sq.query },
-      update: { results: sq.results },
-      create: sq,
-    });
+    const existingQuery = await prisma.searchQuery.findFirst({ where: { query: sq.query } });
+    if (existingQuery) {
+      await prisma.searchQuery.update({
+        where: { id: existingQuery.id },
+        data: { results: sq.results },
+      });
+    } else {
+      await prisma.searchQuery.create({ data: sq });
+    }
   }
 
   console.log("✅ Созданы поисковые запросы");
