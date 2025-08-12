@@ -7,6 +7,7 @@ import { extractHeadingsForToc } from "@/lib/docs";
 import { useModal } from "@/hooks/useModal";
 import AlertModal from "@/components/modals/AlertModal";
 import ConfirmModal from "@/components/modals/ConfirmModal";
+import ModernArticleEditor from "@/components/editor/ModernArticleEditor";
 
 // Типы данных
 interface Article {
@@ -71,6 +72,7 @@ export default function ArticleEditorPage({
   });
 
   const [tagInput, setTagInput] = useState("");
+  const [useModernEditor, setUseModernEditor] = useState(false);
   
   // Modal hooks
   const { alertModal, confirmModal, success, error } = useModal();
@@ -272,6 +274,16 @@ export default function ArticleEditorPage({
             </a>
           )}
           <button
+            onClick={() => setUseModernEditor(!useModernEditor)}
+            className={`px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
+              useModernEditor 
+                ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-600'
+                : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            {useModernEditor ? "📝 Classic Editor" : "✨ Modern Editor"}
+          </button>
+          <button
             onClick={() => setPreviewMode(!previewMode)}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
@@ -295,7 +307,33 @@ export default function ArticleEditorPage({
       </div>
 
       {/* Основной контент */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {useModernEditor ? (
+        <ModernArticleEditor
+          initialData={{
+            title: formData.title,
+            description: formData.excerpt,
+            blocks: formData.content ? [{ id: '1', type: 'paragraph', content: formData.content }] : [{ id: '1', type: 'paragraph', content: '' }],
+            category: formData.category,
+            tags: formData.tags,
+            status: formData.status
+          }}
+          onSave={async (data) => {
+            const updatedFormData = {
+              ...formData,
+              title: data.title,
+              excerpt: data.description,
+              content: data.blocks.map(b => b.content).join('\n\n'),
+              category: data.category,
+              tags: data.tags,
+              status: data.status
+            };
+            setFormData(updatedFormData);
+            await saveArticle(data.status);
+          }}
+          isNew={isNew}
+        />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Главная форма (3 колонки) */}
         <div className="lg:col-span-3 space-y-6">
           {/* Основная информация */}
@@ -539,6 +577,7 @@ const code = 'example';
           )}
         </div>
       </div>
+      )}
       
       {/* Alert and Confirm Modals */}
       <AlertModal
