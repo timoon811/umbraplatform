@@ -1355,8 +1355,10 @@ function isValidEmail(email) {
   ];
 
   for (const setting of siteSettings) {
-    await prisma.siteSetting.create({
-      data: setting,
+    await prisma.siteSetting.upsert({
+      where: { key: setting.key },
+      update: setting,
+      create: setting,
     });
   }
 
