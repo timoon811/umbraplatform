@@ -1394,8 +1394,16 @@ function isValidEmail(email) {
 
   const createdCommentUsers = [];
   for (const userData of commentUsers) {
-    const user = await prisma.user.create({
-      data: userData,
+    const user = await prisma.user.upsert({
+      where: { email: userData.email },
+      update: {
+        name: userData.name,
+        password: userData.password,
+        role: userData.role,
+        status: userData.status,
+        telegram: userData.telegram,
+      },
+      create: userData,
     });
     createdCommentUsers.push(user);
   }
@@ -1485,8 +1493,10 @@ function isValidEmail(email) {
   ];
 
   for (const sq of searchQueries) {
-    await prisma.searchQuery.create({
-      data: sq,
+    await prisma.searchQuery.upsert({
+      where: { query: sq.query },
+      update: { results: sq.results },
+      create: sq,
     });
   }
 
