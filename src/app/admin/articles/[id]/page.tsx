@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { use } from "react";
 import { extractHeadingsForToc } from "@/lib/docs";
+import { useModal } from "@/hooks/useModal";
+import AlertModal from "@/components/modals/AlertModal";
+import ConfirmModal from "@/components/modals/ConfirmModal";
 
 // Типы данных
 interface Article {
@@ -68,6 +71,9 @@ export default function ArticleEditorPage({
   });
 
   const [tagInput, setTagInput] = useState("");
+  
+  // Modal hooks
+  const { alertModal, confirmModal, success, error } = useModal();
 
   // Загрузка статьи для редактирования
   const loadArticle = async () => {
@@ -171,11 +177,10 @@ export default function ArticleEditorPage({
         }
       } else {
         const errorData = await response.json();
-        alert(`Ошибка сохранения: ${errorData.error || "Неизвестная ошибка"}`);
+        error(errorData.error || "Неизвестная ошибка", "Ошибка сохранения");
       }
-    } catch (error) {
-      console.error("Error saving article:", error);
-      alert("Ошибка сохранения статьи");
+    } catch {
+      error("Ошибка сохранения статьи");
     } finally {
       setSaving(false);
     }
@@ -534,6 +539,28 @@ const code = 'example';
           )}
         </div>
       </div>
+      
+      {/* Alert and Confirm Modals */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={alertModal.onClose}
+        title={alertModal.options.title}
+        message={alertModal.options.message}
+        type={alertModal.options.type}
+        confirmText={alertModal.options.confirmText}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={confirmModal.onClose}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.options.title}
+        message={confirmModal.options.message}
+        confirmText={confirmModal.options.confirmText}
+        cancelText={confirmModal.options.cancelText}
+        type={confirmModal.options.type}
+        actionType={confirmModal.options.actionType}
+      />
     </div>
   );
 }

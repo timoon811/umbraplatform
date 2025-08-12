@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useModal } from "@/hooks/useModal";
+import AlertModal from "@/components/modals/AlertModal";
+import ConfirmModal from "@/components/modals/ConfirmModal";
 
 interface UserDetails {
   id: string;
@@ -59,6 +62,9 @@ export default function UserDetailsPage() {
     role: "",
     telegram: "",
   });
+  
+  // Modal hooks
+  const { alertModal, confirmModal, success, error, confirm } = useModal();
 
   const loadUser = async () => {
     setLoading(true);
@@ -94,9 +100,16 @@ export default function UserDetailsPage() {
       unblock: "разблокировать",
     }[action] || action;
 
-    if (!confirm(`Вы уверены, что хотите ${actionText} этого пользователя?`)) {
-      return;
-    }
+    const confirmed = await confirm(
+      `${action === 'approve' ? 'Одобрить' : action === 'reject' ? 'Отклонить' : action === 'block' ? 'Заблокировать' : 'Разблокировать'} пользователя`,
+      `Вы уверены, что хотите ${actionText} этого пользователя?`,
+      {
+        type: action === 'block' || action === 'reject' ? 'warning' : 'info',
+        actionType: action as any
+      }
+    );
+    
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
@@ -111,12 +124,12 @@ export default function UserDetailsPage() {
 
       if (response.ok) {
         loadUser();
-        alert("Действие выполнено успешно");
+        success("Действие выполнено успешно");
       } else {
-        alert(result.message || "Ошибка выполнения действия");
+        error(result.message || "Ошибка выполнения действия");
       }
-    } catch (error) {
-      alert("Ошибка сети");
+    } catch {
+      error("Ошибка сети");
     }
   };
 
@@ -138,19 +151,26 @@ export default function UserDetailsPage() {
       if (response.ok) {
         setUser(result.user);
         setEditMode(false);
-        alert("Пользователь обновлен");
+        success("Пользователь обновлен");
       } else {
-        alert(result.message || "Ошибка обновления");
+        error(result.message || "Ошибка обновления");
       }
-    } catch (error) {
-      alert("Ошибка сети");
+    } catch {
+      error("Ошибка сети");
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm("Вы уверены, что хотите удалить этого пользователя? Это действие необратимо.")) {
-      return;
-    }
+    const confirmed = await confirm(
+      "Удалить пользователя",
+      "Вы уверены, что хотите удалить этого пользователя? Это действие необратимо.",
+      {
+        type: 'danger',
+        actionType: 'delete'
+      }
+    );
+    
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
@@ -160,13 +180,13 @@ export default function UserDetailsPage() {
       const result = await response.json();
 
       if (response.ok) {
-        alert("Пользователь удален");
+        success("Пользователь удален");
         window.history.back();
       } else {
-        alert(result.message || "Ошибка удаления");
+        error(result.message || "Ошибка удаления");
       }
-    } catch (error) {
-      alert("Ошибка сети");
+    } catch {
+      error("Ошибка сети");
     }
   };
 
@@ -498,6 +518,28 @@ export default function UserDetailsPage() {
           </div>
         </div>
       )}
+      
+      {/* Alert and Confirm Modals */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={alertModal.onClose}
+        title={alertModal.options.title}
+        message={alertModal.options.message}
+        type={alertModal.options.type}
+        confirmText={alertModal.options.confirmText}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={confirmModal.onClose}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.options.title}
+        message={confirmModal.options.message}
+        confirmText={confirmModal.options.confirmText}
+        cancelText={confirmModal.options.cancelText}
+        type={confirmModal.options.type}
+        actionType={confirmModal.options.actionType}
+      />
     </div>
   );
 }

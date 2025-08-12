@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useModal } from "@/hooks/useModal";
+import AlertModal from "@/components/modals/AlertModal";
+import ConfirmModal from "@/components/modals/ConfirmModal";
 
 // Типы данных
 interface Article {
@@ -45,6 +48,9 @@ export default function ArticlesManagementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedArticles, setSelectedArticles] = useState<string[]>([]);
+  
+  // Modal hooks
+  const { alertModal, confirmModal, success, error, confirm } = useModal();
 
   // Загрузка статей
   const loadArticles = async () => {
@@ -93,7 +99,16 @@ export default function ArticlesManagementPage() {
   };
 
   const handleDeleteArticle = async (articleId: string) => {
-    if (!confirm("Вы уверены, что хотите удалить эту статью?")) return;
+    const confirmed = await confirm(
+      "Удалить статью",
+      "Вы уверены, что хотите удалить эту статью? Это действие необратимо.",
+      {
+        type: 'danger',
+        actionType: 'delete'
+      }
+    );
+    
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/admin/articles/${articleId}`, {
@@ -102,11 +117,12 @@ export default function ArticlesManagementPage() {
 
       if (response.ok) {
         loadArticles();
+        success("Статья удалена");
       } else {
-        console.error("Failed to delete article");
+        error("Ошибка удаления статьи");
       }
-    } catch (error) {
-      console.error("Error deleting article:", error);
+    } catch {
+      error("Ошибка сети");
     }
   };
 
@@ -480,6 +496,28 @@ export default function ArticlesManagementPage() {
           </div>
         </div>
       )}
+      
+      {/* Alert and Confirm Modals */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={alertModal.onClose}
+        title={alertModal.options.title}
+        message={alertModal.options.message}
+        type={alertModal.options.type}
+        confirmText={alertModal.options.confirmText}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={confirmModal.onClose}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.options.title}
+        message={confirmModal.options.message}
+        confirmText={confirmModal.options.confirmText}
+        cancelText={confirmModal.options.cancelText}
+        type={confirmModal.options.type}
+        actionType={confirmModal.options.actionType}
+      />
     </div>
   );
 }

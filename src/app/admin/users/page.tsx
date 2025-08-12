@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useModal } from "@/hooks/useModal";
+import AlertModal from "@/components/modals/AlertModal";
+import ConfirmModal from "@/components/modals/ConfirmModal";
 
 interface User {
   id: string;
@@ -53,6 +56,9 @@ export default function UsersPage() {
   
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Custom modal hooks
+  const { alertModal, confirmModal, success, error, confirm } = useModal();
 
   const loadUsers = async () => {
     setLoading(true);
@@ -123,9 +129,16 @@ export default function UsersPage() {
     const action = isBlocked ? 'unblock' : 'block';
     const actionText = isBlocked ? 'разблокировать' : 'заблокировать';
     
-    if (!confirm(`Вы уверены, что хотите ${actionText} этого пользователя?`)) {
-      return;
-    }
+    const confirmed = await confirm(
+      `${isBlocked ? 'Разблокировать' : 'Заблокировать'} пользователя`,
+      `Вы уверены, что хотите ${actionText} этого пользователя?`,
+      {
+        type: isBlocked ? 'info' : 'warning',
+        actionType: isBlocked ? 'unblock' : 'block'
+      }
+    );
+    
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
@@ -138,20 +151,27 @@ export default function UsersPage() {
 
       if (response.ok) {
         loadUsers();
-        alert(`Пользователь ${isBlocked ? 'разблокирован' : 'заблокирован'}`);
+        success(`Пользователь ${isBlocked ? 'разблокирован' : 'заблокирован'}`);
       } else {
         const result = await response.json();
-        alert(result.message || "Ошибка выполнения действия");
+        error(result.message || "Ошибка выполнения действия");
       }
-    } catch (error) {
-      alert("Ошибка сети");
+    } catch {
+      error("Ошибка сети");
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm("Вы уверены, что хотите удалить этого пользователя? Это действие необратимо.")) {
-      return;
-    }
+    const confirmed = await confirm(
+      "Удалить пользователя",
+      "Вы уверены, что хотите удалить этого пользователя? Это действие необратимо.",
+      {
+        type: 'danger',
+        actionType: 'delete'
+      }
+    );
+    
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
@@ -160,22 +180,29 @@ export default function UsersPage() {
 
       if (response.ok) {
         loadUsers();
-        alert("Пользователь удален");
+        success("Пользователь удален");
       } else {
-        const result = await response.json();
-        alert(result.message || "Ошибка удаления");
+      const result = await response.json();
+        error(result.message || "Ошибка удаления");
       }
-    } catch (error) {
-      alert("Ошибка сети");
+    } catch {
+      error("Ошибка сети");
     }
   };
 
   const handlePendingAction = async (userId: string, action: 'approve' | 'reject') => {
     const actionText = action === 'approve' ? 'одобрить' : 'отклонить';
     
-    if (!confirm(`Вы уверены, что хотите ${actionText} эту заявку?`)) {
-      return;
-    }
+    const confirmed = await confirm(
+      `${action === 'approve' ? 'Одобрить' : 'Отклонить'} заявку`,
+      `Вы уверены, что хотите ${actionText} эту заявку?`,
+      {
+        type: action === 'approve' ? 'info' : 'warning',
+        actionType: action
+      }
+    );
+    
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
@@ -189,13 +216,13 @@ export default function UsersPage() {
       if (response.ok) {
         loadPendingUsers();
         loadUsers();
-        alert(`Заявка ${action === 'approve' ? 'одобрена' : 'отклонена'}`);
+        success(`Заявка ${action === 'approve' ? 'одобрена' : 'отклонена'}`);
       } else {
         const result = await response.json();
-        alert(result.message || "Ошибка выполнения действия");
+        error(result.message || "Ошибка выполнения действия");
       }
-    } catch (error) {
-      alert("Ошибка сети");
+    } catch {
+      error("Ошибка сети");
     }
   };
 
@@ -218,13 +245,13 @@ export default function UsersPage() {
       if (response.ok) {
         loadUsers();
         setEditModalOpen(false);
-        alert("Пользователь обновлен");
+        success("Пользователь обновлен");
       } else {
         const result = await response.json();
-        alert(result.message || "Ошибка обновления");
+        error(result.message || "Ошибка обновления");
       }
-    } catch (error) {
-      alert("Ошибка сети");
+    } catch {
+      error("Ошибка сети");
     }
   };
 
@@ -377,6 +404,28 @@ export default function UsersPage() {
           onSave={handleUpdateUser}
         />
       )}
+      
+      {/* Alert and Confirm Modals */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={alertModal.onClose}
+        title={alertModal.options.title}
+        message={alertModal.options.message}
+        type={alertModal.options.type}
+        confirmText={alertModal.options.confirmText}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={confirmModal.onClose}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.options.title}
+        message={confirmModal.options.message}
+        confirmText={confirmModal.options.confirmText}
+        cancelText={confirmModal.options.cancelText}
+        type={confirmModal.options.type}
+        actionType={confirmModal.options.actionType}
+      />
           </div>
   );
 }
@@ -468,7 +517,7 @@ function UsersTable({
                         </div>
                       <div className="text-sm text-[#171717]/60 dark:text-[#ededed]/60">
                         {getStatusBadge(user.status, user.isBlocked)}
-                      </div>
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -730,11 +779,11 @@ function PendingUsersTable({
                     onApprove={onApprove}
                     onReject={onReject}
                   />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
       </div>
 
       {/* Mobile Cards */}
@@ -894,9 +943,9 @@ function ViewUserModal({
               </label>
               <div className="text-sm text-[#171717] dark:text-[#ededed]">
                 {user.email}
-              </div>
-            </div>
-            
+        </div>
+      </div>
+
             <div>
               <label className="block text-sm font-medium text-[#171717]/60 dark:text-[#ededed]/60 mb-1">
                 Дата регистрации
@@ -959,7 +1008,7 @@ function EditUserModal({
           <h2 className="text-lg font-semibold text-[#171717] dark:text-[#ededed]">
             Редактировать пользователя
           </h2>
-          <button
+              <button
             onClick={onClose}
             className="text-[#171717]/40 dark:text-[#ededed]/40 hover:text-[#171717] dark:hover:text-[#ededed] transition-colors"
           >
@@ -1035,16 +1084,16 @@ function EditUserModal({
               className="px-4 py-2 rounded-lg text-sm font-medium text-[#171717]/60 dark:text-[#ededed]/60 hover:text-[#171717] dark:hover:text-[#ededed] hover:bg-[#171717]/5 dark:hover:bg-[#ededed]/5 transition-colors"
             >
               Отмена
-            </button>
-            <button
+              </button>
+              <button
               type="submit"
               className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors"
-            >
+              >
               Сохранить
-            </button>
+              </button>
           </div>
         </form>
-      </div>
+        </div>
     </div>
   );
 }

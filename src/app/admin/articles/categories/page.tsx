@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useModal } from "@/hooks/useModal";
+import AlertModal from "@/components/modals/AlertModal";
+import ConfirmModal from "@/components/modals/ConfirmModal";
 
 // Типы данных
 interface Category {
@@ -29,6 +32,9 @@ export default function CategoriesManagementPage() {
     description: "",
     order: 5,
   });
+  
+  // Modal hooks
+  const { alertModal, confirmModal, success, error, warning, confirm } = useModal();
 
   // Загрузка категорий из БД
   const loadCategories = async () => {
@@ -57,13 +63,12 @@ export default function CategoriesManagementPage() {
       });
 
       if (response.ok) {
-        alert("Порядок категорий сохранен!");
+        success("Порядок категорий сохранен!");
       } else {
-        alert("Ошибка сохранения порядка");
+        error("Ошибка сохранения порядка");
       }
-    } catch (error) {
-      console.error("Error saving order:", error);
-      alert("Ошибка сохранения порядка");
+    } catch {
+      error("Ошибка сохранения порядка");
     }
   };
 
@@ -96,7 +101,7 @@ export default function CategoriesManagementPage() {
   // Добавление новой категории
   const addCategory = async () => {
     if (!newCategory.key || !newCategory.name) {
-      alert("Ключ и название обязательны");
+      warning("Ключ и название обязательны", "Необходимо заполнить поля");
       return;
     }
 
@@ -115,15 +120,14 @@ export default function CategoriesManagementPage() {
       if (response.ok) {
         setNewCategory({ key: "", name: "", description: "", order: categories.length + 1 });
         setIsAddingNew(false);
-        // Перезагружаем список категорий
         loadCategories();
+        success("Категория создана");
       } else {
         const errorData = await response.json();
-        alert(`Ошибка: ${errorData.error || "Не удалось создать категорию"}`);
+        error(errorData.error || "Не удалось создать категорию");
       }
-    } catch (error) {
-      console.error("Error creating category:", error);
-      alert("Ошибка создания категории");
+    } catch {
+      error("Ошибка создания категории");
     }
   };
 
@@ -133,15 +137,26 @@ export default function CategoriesManagementPage() {
     if (!category) return;
 
     if (category.articlesCount > 0) {
-      alert(`Невозможно удалить категорию "${category.name}". В ней есть ${category.articlesCount} статей.`);
+      warning(
+        `Невозможно удалить категорию "${category.name}". В ней есть ${category.articlesCount} статей.`,
+        "Удаление невозможно"
+      );
       return;
     }
 
-    if (!confirm(`Вы уверены, что хотите удалить категорию "${category.name}"?`)) {
-      return;
-    }
+    const confirmed = await confirm(
+      "Удалить категорию",
+      `Вы уверены, что хотите удалить категорию "${category.name}"?`,
+      {
+        type: 'danger',
+        actionType: 'delete'
+      }
+    );
+    
+    if (!confirmed) return;
 
     setCategories(prev => prev.filter(cat => cat.key !== categoryKey));
+    success("Категория удалена");
   };
 
   useEffect(() => {
@@ -420,6 +435,28 @@ export default function CategoriesManagementPage() {
           <p>• Порядок автоматически сохраняется при перемещении, но лучше нажать "Сохранить порядок"</p>
         </div>
       </div>
+      
+      {/* Alert and Confirm Modals */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={alertModal.onClose}
+        title={alertModal.options.title}
+        message={alertModal.options.message}
+        type={alertModal.options.type}
+        confirmText={alertModal.options.confirmText}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={confirmModal.onClose}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.options.title}
+        message={confirmModal.options.message}
+        confirmText={confirmModal.options.confirmText}
+        cancelText={confirmModal.options.cancelText}
+        type={confirmModal.options.type}
+        actionType={confirmModal.options.actionType}
+      />
     </div>
   );
 }
